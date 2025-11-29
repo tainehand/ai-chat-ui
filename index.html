@@ -65,16 +65,18 @@
 
 <div id="container">
   <input id="inputBox" placeholder="Type your message..." />
-  <button id="sendBtn" onclick="sendMessage()">Send</button>
+  <button id="sendBtn">Send</button>
 </div>
 
 <script>
-
-// USE YOUR PRODUCTION WEBHOOK (not webhook-test)
+// FINAL WORKING WEBHOOK URL
 const webhookURL = "https://tainehand.app.n8n.cloud/webhook/bf4dd093-bb02-472c-9454-7ab9af97bd1d";
 
 const chatbox = document.getElementById("chatbox");
+const sendBtn = document.getElementById("sendBtn");
+const inputBox = document.getElementById("inputBox");
 
+// Add message to chat UI
 function addMessage(text, type) {
   const div = document.createElement("div");
   div.classList.add("msg", type);
@@ -83,15 +85,15 @@ function addMessage(text, type) {
   chatbox.scrollTop = chatbox.scrollHeight;
 }
 
+// Send message handler
 async function sendMessage() {
-  const input = document.getElementById("inputBox");
-  const text = input.value.trim();
+  const text = inputBox.value.trim();
   if (!text) return;
 
   addMessage(text, "user");
-  input.value = "";
+  inputBox.value = "";
 
-  // Temporary “thinking” message
+  // Temporary bot message
   addMessage("Thinking...", "bot");
 
   try {
@@ -103,17 +105,24 @@ async function sendMessage() {
 
     const data = await res.json();
 
-    // Replace "Thinking..."
     const botMessages = document.querySelectorAll(".bot");
-    botMessages[botMessages.length - 1].innerText =
-      data.reply || "No reply.";
+    botMessages[botMessages.length - 1].innerText = data.reply || "No reply.";
   } catch (err) {
     const botMessages = document.querySelectorAll(".bot");
-    botMessages[botMessages.length - 1].innerText =
-      "Error contacting server.";
+    botMessages[botMessages.length - 1].innerText = "Error contacting server.";
   }
 }
 
+// Attach click event
+sendBtn.addEventListener("click", sendMessage);
+
+// Optional: allow Enter key to send
+inputBox.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") sendMessage();
+});
+</script>
+
 </body>
 </html>
+
 
