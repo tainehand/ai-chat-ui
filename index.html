@@ -69,7 +69,7 @@
 </div>
 
 <script>
-const webhookURL = "https://YOUR_N8N_WEBHOOK_URL"; // <-- Replace this
+const webhookURL = "https://tainehand.app.n8n.cloud/webhook-test/bf4dd093-bb02-472c-9454-7ab9af97bd1d"; // <-- Replace this
 
 const chatbox = document.getElementById("chatbox");
 
@@ -107,6 +107,39 @@ async function sendMessage() {
   } catch (err) {
     addMessage("Error contacting server", "bot");
   }
+}
+<script>
+const webhookUrl = "https://YOUR_N8N_URL/webhook/chat"; // ← replace this!
+
+async function sendMessage() {
+    const input = document.getElementById("chatInput");
+    const message = input.value.trim();
+    if (!message) return;
+
+    // Display the user's message
+    addMessage("user", message);
+
+    // Send it to your n8n webhook
+    const response = await fetch(webhookUrl, {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ message })
+    });
+
+    const data = await response.json();
+
+    // Display n8n's reply
+    addMessage("bot", data.reply || "No reply received.");
+    input.value = "";
+}
+
+function addMessage(sender, text) {
+    const chatBox = document.getElementById("chatBox");
+    const messageEl = document.createElement("div");
+    messageEl.className = sender;
+    messageEl.textContent = text;
+    chatBox.appendChild(messageEl);
+    chatBox.scrollTop = chatBox.scrollHeight;
 }
 </script>
 
