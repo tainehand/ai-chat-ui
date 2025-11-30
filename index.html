@@ -38,6 +38,15 @@
     background: #eee;
   }
 
+  #container {
+    max-width: 600px;
+    margin: 0 auto;
+    display: flex;
+    padding: 10px;
+    background: white;
+    border-top: 1px solid #ddd;
+  }
+
   #inputBox {
     width: calc(100% - 100px);
     padding: 10px;
@@ -46,15 +55,6 @@
   #sendBtn {
     width: 80px;
     padding: 10px;
-  }
-
-  #container {
-    max-width: 600px;
-    margin: 0 auto;
-    display: flex;
-    padding: 10px;
-    background: white;
-    border-top: 1px solid #ddd;
   }
 </style>
 </head>
@@ -69,23 +69,24 @@
 </div>
 
 <script>
-// FINAL WORKING WEBHOOK URL
+// ========== GENERATE OR LOAD SESSION ID ==========
+function getSessionId() {
+  let id = localStorage.getItem("sessionId");
+  if (!id) {
+    id = crypto.randomUUID();   // create unique session id
+    localStorage.setItem("sessionId", id);
+  }
+  return id;
+}
+
+const sessionId = getSessionId();
+
+// ========== WEBHOOK URL ==========
 const webhookURL = "https://tainehand.app.n8n.cloud/webhook/bf4dd093-bb02-472c-9454-7ab9af97bd1d";
 
 const chatbox = document.getElementById("chatbox");
 const sendBtn = document.getElementById("sendBtn");
 const inputBox = document.getElementById("inputBox");
-
-// ---------------------------
-// SESSION ID FIX
-// ---------------------------
-
-// Load existing sessionId or create a new one
-let sessionId = localStorage.getItem("sessionId");
-if (!sessionId) {
-  sessionId = crypto.randomUUID();
-  localStorage.setItem("sessionId", sessionId);
-}
 
 // Add message to chat UI
 function addMessage(text, type) {
@@ -110,18 +111,17 @@ async function sendMessage() {
   try {
     const res = await fetch(webhookURL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         message: text,
-        sessionId: sessionId   // <<--------------- IMPORTANT!
+        sessionId: sessionId   // === send session ID ===
       })
     });
 
     const data = await res.json();
 
     const botMessages = document.querySelectorAll(".bot");
-    botMessages[botMessages.length - 1].innerText =
-      data.reply || data.output || "No reply.";
+    botMessages[botMessages.length - 1].innerText = data.reply || "No reply.";
   } catch (err) {
     const botMessages = document.querySelectorAll(".bot");
     botMessages[botMessages.length - 1].innerText = "Error contacting server.";
