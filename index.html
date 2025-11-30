@@ -20,6 +20,8 @@
     overflow-y: auto;
     background: white;
     border: 1px solid #ddd;
+    display: flex;
+    flex-direction: column;
   }
 
   .msg {
@@ -36,6 +38,7 @@
 
   .bot {
     background: #eee;
+    align-self: flex-start;
   }
 
   #inputBox {
@@ -69,12 +72,35 @@
 </div>
 
 <script>
+// FINAL WORKING WEBHOOK URL
 const webhookURL = "https://tainehand.app.n8n.cloud/webhook/bf4dd093-bb02-472c-9454-7ab9af97bd1d";
 
 const chatbox = document.getElementById("chatbox");
 const sendBtn = document.getElementById("sendBtn");
 const inputBox = document.getElementById("inputBox");
 
+// -- SESSION ID logic: persist in localStorage so same session across reloads --
+function generateUUID() {
+  // simple RFC4122 v4 compliant-ish generator
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
+
+function getSessionId() {
+  let sid = localStorage.getItem('ai_session_id');
+  if (!sid) {
+    sid = generateUUID();
+    localStorage.setItem('ai_session_id', sid);
+  }
+  return sid;
+}
+
+const sessionId = getSessionId();
+
+// Add message to chat UI
 function addMessage(text, type) {
   const div = document.createElement("div");
   div.classList.add("msg", type);
@@ -83,6 +109,36 @@ function addMessage(text, type) {
   chatbox.scrollTop = chatbox.scrollHeight;
 }
 
+// Normalize various response shapes from n8n / other backends
+function extractReplyFromResponse(data) {
+  // If API returned an object with 'reply' property
+  if (data && typeof data === 'object' && !Array.isArray(data) && (data.reply || data.output)) {
+    return data.reply || data.output;
+  }
+
+  // If API returned an array like [{ output: "..." }]
+  if (Array.isArray(data) && data.length > 0) {
+    // common: [{ "output": "..." }]
+    if (data[0] && (data[0].output || data[0].reply)) {
+      return data[0].output || data[0].reply;
+    }
+    // or maybe array of items each with json object like [{ json: { output: "..." } }]
+    if (data[0] && data[0].json && (data[0].json.output || data[0].json.reply)) {
+      return data[0].json.output || data[0].json.reply;
+    }
+  }
+
+  // If API returned top-level "message" or "text"
+  if (data && typeof data === 'object') {
+    if (data.message) return data.message;
+    if (data.text) return data.text;
+  }
+
+  // Nothing matched
+  return null;
+}
+
+// Send message handler
 async function sendMessage() {
   const text = inputBox.value.trim();
   if (!text) return;
@@ -90,35 +146,44 @@ async function sendMessage() {
   addMessage(text, "user");
   inputBox.value = "";
 
-  // Temporary bot placeholder
+  // Temporary bot message
   addMessage("Thinking...", "bot");
 
   try {
     const res = await fetch(webhookURL, {
       method: "POST",
       headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ message: text })
+      body: JSON.stringify({ message: text, sessionId: sessionId })
     });
 
+    // try to parse JSON (n8n respond node returns JSON)
     const data = await res.json();
 
+    // Try to extract reply robustly
+    const reply = extractReplyFromResponse(data);
+
+    // Replace the last bot message (the "Thinking..." one)
     const botMessages = document.querySelectorAll(".bot");
+    const lastBot = botMessages[botMessages.length - 1];
 
-    // FIX: Extract the correct field returned by n8n
-    const reply =
-      (Array.isArray(data) && data[0]?.output)
-      || data.output
-      || "No reply.";
-
-    botMessages[botMessages.length - 1].innerText = reply;
-
+    if (reply) {
+      lastBot.innerText = reply;
+    } else {
+      // Fallback: show the raw JSON string if no reply could be extracted
+      lastBot.innerText = "No reply.";
+      console.warn("Unable to extract reply. Full response:", data);
+    }
   } catch (err) {
     const botMessages = document.querySelectorAll(".bot");
     botMessages[botMessages.length - 1].innerText = "Error contacting server.";
+    console.error(err);
   }
 }
 
+// Attach click event
 sendBtn.addEventListener("click", sendMessage);
+
+// Optional: allow Enter key to send
 inputBox.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendMessage();
 });
@@ -126,6 +191,7 @@ inputBox.addEventListener("keydown", (e) => {
 
 </body>
 </html>
+
 
 
 
