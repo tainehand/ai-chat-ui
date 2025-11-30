@@ -69,8 +69,16 @@
 </div>
 
 <script>
-// FINAL WORKING WEBHOOK URL
+// 🌟 YOUR n8n webhook
 const webhookURL = "https://tainehand.app.n8n.cloud/webhook/bf4dd093-bb02-472c-9454-7ab9af97bd1d";
+
+// 🌟 Create or load session ID
+// This ensures your Postgres memory + agent session stays consistent
+let sessionId = localStorage.getItem("sessionId");
+if (!sessionId) {
+  sessionId = "sess_" + Math.random().toString(36).substring(2) + Date.now();
+  localStorage.setItem("sessionId", sessionId);
+}
 
 const chatbox = document.getElementById("chatbox");
 const sendBtn = document.getElementById("sendBtn");
@@ -85,7 +93,6 @@ function addMessage(text, type) {
   chatbox.scrollTop = chatbox.scrollHeight;
 }
 
-// Send message handler
 async function sendMessage() {
   const text = inputBox.value.trim();
   if (!text) return;
@@ -93,14 +100,16 @@ async function sendMessage() {
   addMessage(text, "user");
   inputBox.value = "";
 
-  // Temporary bot message
   addMessage("Thinking...", "bot");
 
   try {
     const res = await fetch(webhookURL, {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
-      body: JSON.stringify({ message: text })
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        message: text,
+        sessionId: sessionId     // <-- 🌟 IMPORTANT FIX
+      })
     });
 
     const data = await res.json();
@@ -113,10 +122,8 @@ async function sendMessage() {
   }
 }
 
-// Attach click event
 sendBtn.addEventListener("click", sendMessage);
 
-// Optional: allow Enter key to send
 inputBox.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendMessage();
 });
@@ -124,5 +131,6 @@ inputBox.addEventListener("keydown", (e) => {
 
 </body>
 </html>
+
 
 
