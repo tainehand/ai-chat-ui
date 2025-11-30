@@ -69,23 +69,34 @@
 </div>
 
 <script>
+// FINAL WORKING WEBHOOK URL
 const webhookURL = "https://tainehand.app.n8n.cloud/webhook/bf4dd093-bb02-472c-9454-7ab9af97bd1d";
 
 const chatbox = document.getElementById("chatbox");
 const sendBtn = document.getElementById("sendBtn");
 const inputBox = document.getElementById("inputBox");
 
-function addMessage(text, type, id = null) {
+// ---------------------------
+// SESSION ID FIX
+// ---------------------------
+
+// Load existing sessionId or create a new one
+let sessionId = localStorage.getItem("sessionId");
+if (!sessionId) {
+  sessionId = crypto.randomUUID();
+  localStorage.setItem("sessionId", sessionId);
+}
+
+// Add message to chat UI
+function addMessage(text, type) {
   const div = document.createElement("div");
   div.classList.add("msg", type);
-
-  if (id) div.dataset.id = id;  // <-- unique ID tag
-
   div.innerText = text;
   chatbox.appendChild(div);
   chatbox.scrollTop = chatbox.scrollHeight;
 }
 
+// Send message handler
 async function sendMessage() {
   const text = inputBox.value.trim();
   if (!text) return;
@@ -93,51 +104,38 @@ async function sendMessage() {
   addMessage(text, "user");
   inputBox.value = "";
 
-  // Create a unique ID so we can update the correct "Thinking..." bubble
-  const msgId = "botmsg-" + Date.now();
-  addMessage("Thinking...", "bot", msgId);
+  // Temporary bot message
+  addMessage("Thinking...", "bot");
 
   try {
     const res = await fetch(webhookURL, {
       method: "POST",
-      headers: {"Content-Type": "application/json"},
+      headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         message: text,
-        sessionId: localStorage.getItem("sessionId") || null
+        sessionId: sessionId   // <<--------------- IMPORTANT!
       })
     });
 
     const data = await res.json();
 
-    // Find the correct bubble using the ID we gave it
-    const thinkingBubble = document.querySelector(`[data-id="${msgId}"]`);
-
-    thinkingBubble.innerText = data.reply || "No reply received.";
-
+    const botMessages = document.querySelectorAll(".bot");
+    botMessages[botMessages.length - 1].innerText =
+      data.reply || data.output || "No reply.";
   } catch (err) {
-    const thinkingBubble = document.querySelector(`[data-id="${msgId}"]`);
-    thinkingBubble.innerText = "Error contacting server.";
+    const botMessages = document.querySelectorAll(".bot");
+    botMessages[botMessages.length - 1].innerText = "Error contacting server.";
   }
 }
 
+// Attach click event
 sendBtn.addEventListener("click", sendMessage);
 
+// Optional: allow Enter key to send
 inputBox.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendMessage();
 });
-
-// Create a persistent sessionId for memory
-if (!localStorage.getItem("sessionId")) {
-  localStorage.setItem("sessionId", crypto.randomUUID());
-}
 </script>
-
 
 </body>
 </html>
-
-
-
-
-
-
