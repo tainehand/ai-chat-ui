@@ -69,25 +69,18 @@
 </div>
 
 <script>
-// 🌟 YOUR n8n webhook
 const webhookURL = "https://tainehand.app.n8n.cloud/webhook/bf4dd093-bb02-472c-9454-7ab9af97bd1d";
-
-// 🌟 Create or load session ID
-// This ensures your Postgres memory + agent session stays consistent
-let sessionId = localStorage.getItem("sessionId");
-if (!sessionId) {
-  sessionId = "sess_" + Math.random().toString(36).substring(2) + Date.now();
-  localStorage.setItem("sessionId", sessionId);
-}
 
 const chatbox = document.getElementById("chatbox");
 const sendBtn = document.getElementById("sendBtn");
 const inputBox = document.getElementById("inputBox");
 
-// Add message to chat UI
-function addMessage(text, type) {
+function addMessage(text, type, id = null) {
   const div = document.createElement("div");
   div.classList.add("msg", type);
+
+  if (id) div.dataset.id = id;  // <-- unique ID tag
+
   div.innerText = text;
   chatbox.appendChild(div);
   chatbox.scrollTop = chatbox.scrollHeight;
@@ -100,25 +93,30 @@ async function sendMessage() {
   addMessage(text, "user");
   inputBox.value = "";
 
-  addMessage("Thinking...", "bot");
+  // Create a unique ID so we can update the correct "Thinking..." bubble
+  const msgId = "botmsg-" + Date.now();
+  addMessage("Thinking...", "bot", msgId);
 
   try {
     const res = await fetch(webhookURL, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {"Content-Type": "application/json"},
       body: JSON.stringify({
         message: text,
-        sessionId: sessionId     // <-- 🌟 IMPORTANT FIX
+        sessionId: localStorage.getItem("sessionId") || null
       })
     });
 
     const data = await res.json();
 
-    const botMessages = document.querySelectorAll(".bot");
-    botMessages[botMessages.length - 1].innerText = data.reply || "No reply.";
+    // Find the correct bubble using the ID we gave it
+    const thinkingBubble = document.querySelector(`[data-id="${msgId}"]`);
+
+    thinkingBubble.innerText = data.reply || "No reply received.";
+
   } catch (err) {
-    const botMessages = document.querySelectorAll(".bot");
-    botMessages[botMessages.length - 1].innerText = "Error contacting server.";
+    const thinkingBubble = document.querySelector(`[data-id="${msgId}"]`);
+    thinkingBubble.innerText = "Error contacting server.";
   }
 }
 
@@ -127,7 +125,13 @@ sendBtn.addEventListener("click", sendMessage);
 inputBox.addEventListener("keydown", (e) => {
   if (e.key === "Enter") sendMessage();
 });
+
+// Create a persistent sessionId for memory
+if (!localStorage.getItem("sessionId")) {
+  localStorage.setItem("sessionId", crypto.randomUUID());
+}
 </script>
+
 
 </body>
 </html>
